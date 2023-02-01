@@ -5,40 +5,40 @@
 <a href="{% url 'expenses:expense-create' %}">add</a>
 
 <form method="get" action="">
-  {{form.as_p}}
-  <button type="submit">search</button>
+	{{form.as_p}}
+	<button type="submit">search</button>
 </form>
 <br>
 <table border="1">
 	<caption>Expenses</caption>
 	<thead>
-	  <tr>
+	<tr>
 		<th>no.</th>
 		<th>category</th>
 		<th>name</th>
 		<th>amount</th>
 		<th>date</th>
 		<th>actions</th>
-	  </tr>
+	</tr>
 	</thead>
 	<tbody>
 
 	{% for obj in object_list %}
-	  <tr>
+	<tr>
 		<td>{{ page_obj.start_index|add:forloop.counter0 }}.</td>
 		<td>{{ obj.category|default:"-" }}</td>
 		<td>{{ obj.name|default:"-" }}</td>
 		<td>{{ obj.amount|floatformat:2 }}</td>
 		<td>{{obj.date}}</td>
 		<td>
-		  <a href="{% url 'expenses:expense-edit' obj.id %}">edit</a>
-		  <a href="{% url 'expenses:expense-delete' obj.id %}">delete</a>
+			<a href="{% url 'expenses:expense-edit' obj.id %}">edit</a>
+			<a href="{% url 'expenses:expense-delete' obj.id %}">delete</a>
 		</td>
-	  </tr>
-	  {% empty %}
-	  <tr>
+	</tr>
+	{% empty %}
+	<tr>
 		<td colspan="5">no items</td>
-	  </tr>
+	</tr>
 	{% endfor %}
 	</tbody>
 </table>
@@ -46,14 +46,35 @@
 {% include "_pagination.html" %}
 <hr>
 <table border="1">
-  <caption>Summary per category</caption>
-  <tr>
-    {% for category, total in summary_per_category.items %}
+	<caption>Summary per category</caption>
+	<tr>
+		{% for category, total in summary_per_category.items %}
 	<tr>
 		<td>{{category}}:</td>
 		<td>{{total|floatformat:2}}</td>
 	</tr>
 	{% endfor %}
-  </tr>
+	</tr>
+</table>
+
+<table border="1">
+	<caption>Total amount spent</caption>
+	<tr>
+		<td>Total amount spent:</td>
+		<td>{{total_amount_spent.amount__sum|floatformat:2}}</td>
+	</tr>
+</table>
+
+<table border="5">
+	<caption>Summary per year-month</caption>
+	<td>Year-month:</td>
+	<td>Sum:</td>
+	<tr>
+		{% for total in total_summary_per_year_month %}
+	<tr>
+		<td>{{total.year}}-{{total.month}}</td> <td>{{total.sum|floatformat:2}}</td>
+	</tr>
+	{% endfor %}
+	</tr>
 </table>
 {% endblock %}
