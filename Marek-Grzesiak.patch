@@ -1,0 +1,278 @@
+commit 7380986b5713cd364d326b76f626573b4021e238
+Author: Marek Grzesiak <marekgrzesiak.22@gmail.com>
+Date:   Wed Feb 1 13:32:35 2023 +0100
+
+    1. Commit all changes.
+
+diff --git a/expenses/forms.py b/expenses/forms.py
+index 0ad77c0..d24f3db 100644
+--- a/expenses/forms.py
++++ b/expenses/forms.py
+@@ -1,12 +1,17 @@
+ from django import forms
+-from .models import Expense
+ 
++from .models import Category
+ 
+-class ExpenseSearchForm(forms.ModelForm):
+-    class Meta:
+-        model = Expense
+-        fields = ('name',)
++
++class ExpenseSearchForm(forms.Form):
++    name = forms.CharField(required=False)
++    fromdate = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
++    todate = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
++    category = forms.ModelMultipleChoiceField(queryset=Category.objects.all(), required=False)
++    CHOICES = (('category', 'category'), ('date', 'date'),)
++    order_by = forms.ChoiceField(choices=CHOICES, required=False)
++    sort_descending = forms.BooleanField(required=False)
+ 
+     def __init__(self, *args, **kwargs):
+         super().__init__(*args, **kwargs)
+-        self.fields['name'].required = False
++        self.fields['name'].required = False
+\ No newline at end of file
+diff --git a/expenses/templates/expenses/category_list.html b/expenses/templates/expenses/category_list.html
+index 3fa249e..f737fa1 100644
+--- a/expenses/templates/expenses/category_list.html
++++ b/expenses/templates/expenses/category_list.html
+@@ -4,23 +4,38 @@
+ <a href="{% url 'expenses:category-create' %}">add</a>
+ 
+ <table border="1">
+-	<thead>
+-		<tr>
+-			<th>name</th>
+-			<th>actions</th>
+-		</tr>
+-	</thead>
+-	<tbody>
+-		{% for obj in object_list %}
+-		<tr>
+-			<td>
+-				{{obj.name}}
+-			</td>
+-			<td>
+-				<a href="{% url 'expenses:category-delete' obj.id %}">delete</a>
+-			</td>
+-		</tr>
+-		{% endfor %}
+-	</tbody>
++    <thead>
++    <tr>
++        <th>name</th>
++        <th>actions</th>
++        <th>actions</th>
++    </tr>
++    </thead>
++    <tbody>
++    {% for obj in object_list %}
++    <tr>
++        <td>{{obj.name}}</td>
++        <td><a href="{% url 'expenses:category-delete' obj.id %}">delete</a></td>
++        <td><a href="{% url 'expenses:category-update' obj.id %}">update</a></td>
++    </tr>
++    {% endfor %}
++    </tbody>
+ </table>
+-{% endblock %}
++
++<table border="1">
++    <thead>
++    <tr>
++        <th>name</th>
++        <th>expenses</th>
++    </tr>
++    </thead>
++    <tbody>
++    {% for key, value in query_set.items %}
++    <tr>
++        <td>{{ key }}</td>
++        <td>{{ value }}</td>
++    </tr>
++    {% endfor %}
++    </tbody>
++</table>
++{% endblock %}
+\ No newline at end of file
+diff --git a/expenses/templates/expenses/expense_list.html b/expenses/templates/expenses/expense_list.html
+index d15d582..b0b2f0c 100644
+--- a/expenses/templates/expenses/expense_list.html
++++ b/expenses/templates/expenses/expense_list.html
+@@ -5,40 +5,40 @@
+ <a href="{% url 'expenses:expense-create' %}">add</a>
+ 
+ <form method="get" action="">
+-  {{form.as_p}}
+-  <button type="submit">search</button>
++	{{form.as_p}}
++	<button type="submit">search</button>
+ </form>
+ <br>
+ <table border="1">
+ 	<caption>Expenses</caption>
+ 	<thead>
+-	  <tr>
++	<tr>
+ 		<th>no.</th>
+ 		<th>category</th>
+ 		<th>name</th>
+ 		<th>amount</th>
+ 		<th>date</th>
+ 		<th>actions</th>
+-	  </tr>
++	</tr>
+ 	</thead>
+ 	<tbody>
+ 
+ 	{% for obj in object_list %}
+-	  <tr>
++	<tr>
+ 		<td>{{ page_obj.start_index|add:forloop.counter0 }}.</td>
+ 		<td>{{ obj.category|default:"-" }}</td>
+ 		<td>{{ obj.name|default:"-" }}</td>
+ 		<td>{{ obj.amount|floatformat:2 }}</td>
+ 		<td>{{obj.date}}</td>
+ 		<td>
+-		  <a href="{% url 'expenses:expense-edit' obj.id %}">edit</a>
+-		  <a href="{% url 'expenses:expense-delete' obj.id %}">delete</a>
++			<a href="{% url 'expenses:expense-edit' obj.id %}">edit</a>
++			<a href="{% url 'expenses:expense-delete' obj.id %}">delete</a>
+ 		</td>
+-	  </tr>
+-	  {% empty %}
+-	  <tr>
++	</tr>
++	{% empty %}
++	<tr>
+ 		<td colspan="5">no items</td>
+-	  </tr>
++	</tr>
+ 	{% endfor %}
+ 	</tbody>
+ </table>
+@@ -46,14 +46,35 @@
+ {% include "_pagination.html" %}
+ <hr>
+ <table border="1">
+-  <caption>Summary per category</caption>
+-  <tr>
+-    {% for category, total in summary_per_category.items %}
++	<caption>Summary per category</caption>
++	<tr>
++		{% for category, total in summary_per_category.items %}
+ 	<tr>
+ 		<td>{{category}}:</td>
+ 		<td>{{total|floatformat:2}}</td>
+ 	</tr>
+ 	{% endfor %}
+-  </tr>
++	</tr>
++</table>
++
++<table border="1">
++	<caption>Total amount spent</caption>
++	<tr>
++		<td>Total amount spent:</td>
++		<td>{{total_amount_spent.amount__sum|floatformat:2}}</td>
++	</tr>
++</table>
++
++<table border="5">
++	<caption>Summary per year-month</caption>
++	<td>Year-month:</td>
++	<td>Sum:</td>
++	<tr>
++		{% for total in total_summary_per_year_month %}
++	<tr>
++		<td>{{total.year}}-{{total.month}}</td> <td>{{total.sum|floatformat:2}}</td>
++	</tr>
++	{% endfor %}
++	</tr>
+ </table>
+ {% endblock %}
+diff --git a/expenses/urls.py b/expenses/urls.py
+index 4ae9779..2f987d4 100644
+--- a/expenses/urls.py
++++ b/expenses/urls.py
+@@ -50,4 +50,12 @@ urlpatterns = [
+             template_name='generic_delete.html'
+          ),
+          name='category-delete'),
++    path('category/<int:pk>/update/',
++         UpdateView.as_view(
++             model=Category,
++             fields='__all__',
++             success_url=reverse_lazy('expenses:category-list'),
++             template_name='generic_update.html'
++         ),
++         name='category-update'),
+ ]
+diff --git a/expenses/views.py b/expenses/views.py
+index aefaae9..fba054b 100644
+--- a/expenses/views.py
++++ b/expenses/views.py
+@@ -1,3 +1,5 @@
++from django.db.models import Sum
++from django.db.models.functions import ExtractYear, ExtractMonth
+ from django.views.generic.list import ListView
+ 
+ from .forms import ExpenseSearchForm
+@@ -15,16 +17,54 @@ class ExpenseListView(ListView):
+         form = ExpenseSearchForm(self.request.GET)
+         if form.is_valid():
+             name = form.cleaned_data.get('name', '').strip()
++            fromdate = form.cleaned_data.get('fromdate', '')
++            todate = form.cleaned_data.get('todate', '')
++            category = form.cleaned_data.get('category', '')
++            order_by = form.cleaned_data.get('order_by', '')
++            sort_descending = form.cleaned_data.get('sort_descending', '')
++
++            filters = {}
++
+             if name:
+-                queryset = queryset.filter(name__icontains=name)
++                filters['name__icontains'] = name
++            if fromdate and todate:
++                filters['date__range'] = [fromdate, todate]
++            if category:
++                filters['category__in'] = category
++
++            queryset = queryset.filter(**filters)
++
++            if order_by:
++                if sort_descending:
++                    queryset = queryset.order_by(order_by).reverse()
++                else:
++                    queryset = queryset.order_by(order_by)
++
++            total_amount_spent = queryset.aggregate(Sum('amount'))
++
++            total_summary_per_year_month = queryset.annotate(year=ExtractYear('date'),
++                                                             month=ExtractMonth('date')). \
++                values('year', 'month').annotate(sum=Sum('amount')).order_by('year', 'month')
+ 
+         return super().get_context_data(
+             form=form,
+             object_list=queryset,
+             summary_per_category=summary_per_category(queryset),
+-            **kwargs)
++            total_amount_spent=total_amount_spent,
++            total_summary_per_year_month=total_summary_per_year_month,
++            **kwargs
++        )
++
+ 
+ class CategoryListView(ListView):
+     model = Category
+     paginate_by = 5
+ 
++    def get_context_data(self, **kwargs):
++        query_set = [(c, Expense.objects.filter(category=c.id).count()) for c in Category.objects.all()]
++        query_set = dict(query_set)
++
++        return super().get_context_data(
++            query_set=query_set,
++            **kwargs
++        )
